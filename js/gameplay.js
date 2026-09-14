@@ -246,7 +246,7 @@ function placeTrap(idx, rarity) {
 
     // Determine if this is an upgrade or downgrade
     const isUpgrade = !plot.trapRarity || RARITY_ORDER.indexOf(rarity) > RARITY_ORDER.indexOf(plot.trapRarity);
-    const actionName = isUpgrade ? (isEn ? "upgraded" : "verbessert") : (isEn ? "downgraded" : "herabgestuft");
+    const actionName = isUpgrade ? (isEn ? "placed" : "aufgestellt") : (isEn ? "downgraded" : "herabgestuft");
 
     payCost(cost);
     if (RARITY_ORDER.indexOf(rarity) > RARITY_ORDER.indexOf(gameState.wildArea.highestTrapRarity)) {
@@ -263,7 +263,7 @@ function placeTrap(idx, rarity) {
     }
 
     const rarityName = isEn ? RARITIES[rarity].nameEn : RARITIES[rarity].name;
-    showNotification(isEn ? `Trap ${actionName} to ${rarityName}!` : `Falle ${actionName} zu ${rarityName}!`, "emerald");
+    showNotification(isEn ? `${rarityName} Trap has been ${actionName}!` : `Falle (${rarityName}) wurde ${actionName}!`, "emerald");
 
     saveGame();
     updateUI();
@@ -466,17 +466,6 @@ function renderWildArea() {
             const remainingSec = Math.max(0, Math.ceil((plot.catchReadyAt - Date.now()) / 1000));
 
             let changeBtns = "";
-            // Show change buttons ONLY when trap is ready to be collected
-            if (ready) {
-                RARITY_ORDER.forEach(r => {
-                    if (r === plot.trapRarity) return; // Skip current trap rarity
-                    const cost = getTrapUpgradeCost(plot.trapRarity, r);
-                    const costStr = formatTrapCost(cost);
-                    const isUpgrade = RARITY_ORDER.indexOf(r) > RARITY_ORDER.indexOf(plot.trapRarity);
-                    const actionLabel = isUpgrade ? (isEn ? 'Upgrade' : 'Upgrade') : (isEn ? 'Change to' : 'Wechsel zu');
-                    changeBtns += `<button onclick="placeTrap(${idx}, '${r}')" title="${costStr}" class="w-full px-1.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold border ${RARITIES[r].colorClass} ${RARITIES[r].textClass} hover:brightness-125 transition">${actionLabel}: ${isEn ? RARITIES[r].nameEn : RARITIES[r].name}</button>`;
-                });
-            }
 
             card.className = `glass-panel p-3 rounded-2xl border ${rData.colorClass} flex flex-col items-center justify-center gap-1 min-h-[130px] ${ready ? 'animate-pulse' : ''}`;
             card.innerHTML = `
