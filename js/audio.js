@@ -20,6 +20,7 @@ let bgmOsc = null;
 let bgmGain = null;
 let bgmInterval = null;
 let bgmPlaying = false;
+let sanctuaryWave = null; // Sicher global deklariert für Zone 4 (Sanktuarium)
 
 function initAudioContext() {
     if (!audioCtx) {
@@ -30,6 +31,12 @@ function initAudioContext() {
     }
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
+    }
+    // SICHERE ERSTELLUNG DER WELLE: Beide Arrays brauchen mindestens ein Element, um Browser-Fehler zu vermeiden
+    if (audioCtx && !sanctuaryWave) {
+        const real = new Float32Array([0, 0, 0, 0, 0, 0]); 
+        const imag = new Float32Array([0, 0.8, 0.4, 0.1, 0, 0]); 
+        sanctuaryWave = audioCtx.createPeriodicWave(real, imag);
     }
 }
 
@@ -180,9 +187,10 @@ function startProceduralBGM() {
         { scale: [261.63, 293.66, 329.63, 392.00, 440.00, 523.25], wave: 'sine', speed: 450 },
         { scale: [329.63, 392.00, 493.88, 523.25, 587.33, 659.25], wave: 'triangle', speed: 300 },
         { scale: [220.00, 246.94, 261.63, 311.13, 329.63, 415.30], wave: 'sawtooth', speed: 500 },
-        { scale: [174.61, 220.00, 261.63, 329.63, 349.23, 440.00, 523.25], wave: 'triangle', speed: 350 }
+        { scale: [174.61, 220.00, 261.63, 329.63, 349.23, 440.00, 329.63, 349.23, 440.00, 329.63, 349.23, 261.63, 220.00], wave: 'custom', speed: 600 }
     ];
 
+    // FIX: Fallback auf zoneMelodies[0] repariert, damit das Skript stabil lädt
     const currentMelody = zoneMelodies[gameState.currentZone] || zoneMelodies[0];
 
     bgmInterval = setInterval(() => {
@@ -194,17 +202,43 @@ function startProceduralBGM() {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
 
-        osc.type = currentMelody.wave;
+        // Custom Welle laden falls aktiv
+        if (currentMelody.wave === 'custom' && sanctuaryWave) {
+            osc.setPeriodicWave(sanctuaryWave);
+        } else {
+            osc.type = currentMelody.wave;
+        }
+        
         osc.frequency.setValueAtTime(freq, now);
 
         const vol = (gameState.settings.bgmVolume / 100) * 0.08;
-        gain.gain.setValueAtTime(vol, now);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + (currentMelody.speed / 1000) * 0.9);
 
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(now);
-        osc.stop(now + (currentMelody.speed / 1000));
+        if (currentMelody.wave === 'custom') {
+            // Unheimlicher Lavender Town Effekt: Töne klingen lang und überlappend im Hintergrund aus
+            const noteDuration = 2.5; 
+            const attackTime = 0.05; 
+            const fadeOutTime = 2.0;
+
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(vol, now + attackTime); 
+            gain.gain.setValueAtTime(vol, now + (noteDuration - fadeOutTime));
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + noteDuration);
+            gain.gain.setValueAtTime(0, now + noteDuration);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + noteDuration);
+        } else {
+            // Original-Verhalten für die restlichen Zonen
+            gain.gain.setValueAtTime(vol, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + (currentMelody.speed / 1000) * 0.9);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + (currentMelody.speed / 1000));
+        }
     }, currentMelody.speed);
 
     const btn = document.getElementById("bgm-toggle-btn");
@@ -228,7 +262,6 @@ function toggleAudioBGM() {
         showNotification("BGM: An", "cyan");
     } else {
         stopProceduralBGM();
-        showNotification("BGM: Aus", "amber");
+        showNotification("BGM: Aus", "gray");
     }
-    saveGame();
 }
